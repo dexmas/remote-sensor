@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<EmbeddedProfile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ToolchainID>com.visualgdb.avr</ToolchainID>
+  <ToolchainVersion>
+    <GCC>5.3.0</GCC>
+    <GDB>7.11</GDB>
+    <Revision>1</Revision>
+  </ToolchainVersion>
+  <BspID>com.visualgdb.bsp.in-place</BspID>
+  <BspVersion>1.0</BspVersion>
+  <McuID>ATTINY13A</McuID>
+  <BSPSubdirectory>BSP</BSPSubdirectory>
+  <MCUDefinitionFile>attiny13a.xml</MCUDefinitionFile>
+  <MCUProperties>
+    <Entries />
+  </MCUProperties>
+  <BSPSourceFolderName>Device-specific files</BSPSourceFolderName>
+  <InPlaceMCU>
+    <ID>ATTINY13A</ID>
+    <UserFriendlyName>ATTINY13A</UserFriendlyName>
+    <CompilationFlags>
+      <COMMONFLAGS>-mmcu=attiny13a</COMMONFLAGS>
+      <EnableLinkerGroups>true</EnableLinkerGroups>
+    </CompilationFlags>
+    <FamilyID>avr</FamilyID>
+    <FLASHSize>1024</FLASHSize>
+    <RAMSize>64</RAMSize>
+    <FLASHBase>0</FLASHBase>
+    <RAMBase>96</RAMBase>
+    <MCUDefinitionFile>attiny13a.xml</MCUDefinitionFile>
+    <AdditionalSourcesRequiredForTesting>false</AdditionalSourcesRequiredForTesting>
+  </InPlaceMCU>
+  <MCUMakFile>avr.mak</MCUMakFile>
+  <ReferencedFrameworks />
+  <FrameworkProperties>
+    <Entries />
+  </FrameworkProperties>
+  <TestFrameworkProperties>
+    <Entries />
+  </TestFrameworkProperties>
+</EmbeddedProfile>

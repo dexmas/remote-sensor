@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source files">
+      <UniqueIdentifier>{525a6a13-6c74-4325-aa38-350cd4039eca}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header files">
+      <UniqueIdentifier>{13fbbce5-fea5-448d-9876-ce8042ca50c1}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource files">
+      <UniqueIdentifier>{6b900c32-fcf8-4262-abaf-e788027d3686}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="Source files\Device-specific files">
+      <UniqueIdentifier>{58738c11-2dd1-49d4-83c3-53f08059ffce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header files\Device-specific files">
+      <UniqueIdentifier>{05af0281-4ffa-4628-b3fe-9d96bda36d77}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VisualGDB settings">
+      <UniqueIdentifier>{e5811676-3fd8-495d-a2b5-6dc4fd75f4f3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="avr.props">
+      <Filter>Source files\Device-specific files</Filter>
+    </None>
+    <None Include="avr.xml">
+      <Filter>VisualGDB settings</Filter>
+    </None>
+    <None Include="sensor-attiny13.vgdbsettings">
+      <Filter>VisualGDB settings</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.c">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="mirf_tx.c">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="spi.c">
+      <Filter>Source files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="mirf_tx.h">
+      <Filter>Source files</Filter>
+    </ClInclude>
+    <ClInclude Include="nRF24L01.h">
+      <Filter>Source files</Filter>
+    </ClInclude>
+    <ClInclude Include="spi.h">
+      <Filter>Source files</Filter>
+    </ClInclude>
+    <ClInclude Include="timeout.h">
+      <Filter>Source files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
