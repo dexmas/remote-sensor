@@ -1,7 +1,7 @@
 #include <avr/io.h>
-#include <avr/wdt.h> // здесь организована работа с ватчдогом
-#include <avr/sleep.h> // здесь описаны режимы сна
-#include <avr/interrupt.h> // работа с прерываниями
+#include <avr/wdt.h>
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
 #include <stdint.h>
 #include <util/delay.h>
 
@@ -9,31 +9,31 @@
 #include "nRF24L01.h"
 
 #define DHT_BIT         3 // pin 3 -  TRANSMITPIN
-#define DHT_PORT        PORTB // порт
+#define DHT_PORT        PORTB
 #define DHT_DDR         DDRB
 #define DHT_PIN         PINB
 
-#define SLEEPDURATION 1//0 //sleep duration in seconds/8, shall be a factor of 8
+#define SLEEPDURATION 1 //0 //sleep duration in seconds/8, shall be a factor of 8
 
 // watchdog interrupt
 ISR(WDT_vect) {
-	WDTCR |= _BV(WDTIE);  // разрешаем прерывания по ватчдогу. Иначе будет резет.
+	WDTCR |= _BV(WDTIE);  // СЂР°Р·СЂРµС€Р°РµРј РїСЂРµСЂС‹РІР°РЅРёСЏ РїРѕ РІР°С‚С‡РґРѕРіСѓ. РРЅР°С‡Рµ Р±СѓРґРµС‚ СЂРµР·РµС‚.
 }
 
 void sleepFor8Secs(int oct) {
 	cli();
 	MCUSR = 0;   // clear various "reset" flags
-	//инициализация ватчдога
-	wdt_reset();  // сбрасываем
+	//РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РІР°С‚С‡РґРѕРіР°
+	wdt_reset();  // СЃР±СЂР°СЃС‹РІР°РµРј
 	if(oct == 1) {
-		wdt_enable(WDTO_8S);  // разрешаем ватчдог 8 сек
+		wdt_enable(WDTO_250MS);  // СЂР°Р·СЂРµС€Р°РµРј РІР°С‚С‡РґРѕРі 8 СЃРµРє
 	}else {
-		wdt_enable(WDTO_1S);  // разрешаем ватчдог 1 сек
+		wdt_enable(WDTO_500MS);  // СЂР°Р·СЂРµС€Р°РµРј РІР°С‚С‡РґРѕРі 1 СЃРµРє
 	}
 	//WDTCR |= _BV(WDCE);
 	WDTCR &= ~_BV(WDE);
-	WDTCR |= _BV(WDTIE);  // разрешаем прерывания по ватчдогу. Иначе будет резет.
-	sei();  // разрешаем прерывания
+	WDTCR |= _BV(WDTIE);  // СЂР°Р·СЂРµС€Р°РµРј РїСЂРµСЂС‹РІР°РЅРёСЏ РїРѕ РІР°С‚С‡РґРѕРіСѓ. РРЅР°С‡Рµ Р±СѓРґРµС‚ СЂРµР·РµС‚.
+	sei();  // СЂР°Р·СЂРµС€Р°РµРј РїСЂРµСЂС‹РІР°РЅРёСЏ
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 	sleep_enable();
 	sleep_cpu();
@@ -41,7 +41,7 @@ void sleepFor8Secs(int oct) {
 }
 
 int dht22read() {
-	// если в программе имеются прерывания,то не забывайте их отлючать перед чтением датчика
+	// РµСЃР»Рё РІ РїСЂРѕРіСЂР°РјРјРµ РёРјРµСЋС‚СЃСЏ РїСЂРµСЂС‹РІР°РЅРёСЏ,С‚Рѕ РЅРµ Р·Р°Р±С‹РІР°Р№С‚Рµ РёС… РѕС‚Р»СЋС‡Р°С‚СЊ РїРµСЂРµРґ С‡С‚РµРЅРёРµРј РґР°С‚С‡РёРєР°
 	uint8_t  j = 0, i = 0;
 	uint8_t datadht[8];
 	
@@ -52,9 +52,9 @@ int dht22read() {
 	_delay_ms(18);
 	DHT_PORT |= (1 << DHT_BIT);
 	DHT_DDR &= ~(1 << DHT_BIT);
-	_delay_us(50);  // +1 для attiny(коррекция без кварца)
+	_delay_us(50);  // +1 РґР»СЏ attiny(РєРѕСЂСЂРµРєС†РёСЏ Р±РµР· РєРІР°СЂС†Р°)
 	if(DHT_PIN&(1 << DHT_BIT)) return 3;
-	_delay_us(80);  // +1 для attiny(коррекция без кварца)
+	_delay_us(80);  // +1 РґР»СЏ attiny(РєРѕСЂСЂРµРєС†РёСЏ Р±РµР· РєРІР°СЂС†Р°)
 	if(!(DHT_PIN&(1 << DHT_BIT))) return 4;
 	while (DHT_PIN&(1 << DHT_BIT)) ;
 	for (j = 0; j < 5; j++) {
@@ -68,17 +68,17 @@ int dht22read() {
 		}
 	}
 	if (datadht[4] == ((datadht[0] + datadht[1] + datadht[2] + datadht[3]) & 0xFF)) {
-        mirf_CSN_lo;
+        MIRF_CSN_LO;
 		_delay_ms(100);
-		mirf_CSN_hi;
+		MIRF_CSN_HI;
 
 		// need time to come out of power down mode s. 6.1.7, table 16  datasheet says 1.5ms max, tested as low as 600us
-		mirf_config_register(CONFIG, mirf_CONFIG | (1 << PWR_UP));
+		mirf_config_register(CONFIG, MIRF_CONFIG | (1 << PWR_UP));
 		_delay_ms(1);
 
-		mirf_send(datadht, mirf_PAYLOAD);
+		mirf_send(datadht, MIRF_PAYLOAD);
 		_delay_us(10);
-		mirf_config_register(CONFIG, mirf_CONFIG);
+		mirf_config_register(CONFIG, MIRF_CONFIG);
 		sleepFor8Secs(0);
 		// Reset status register for further interaction 
 		mirf_config_register(STATUS, (1 << TX_DS));  // Reset status register

@@ -3,15 +3,29 @@
 
 #include <avr/io.h>
 
+#define NRF2PIN
+
+//SPI
+#ifdef NRF2PIN
+#define MOMI_PIN	(1 << PB0)
+#define SCK_PIN 	(1 << PB2)
+
+#define MIRF_CSN_HI {PORTB |= SCK_PIN; _delay_ms(2);}
+#define MIRF_CSN_LO {PORTB &= ~SCK_PIN; _delay_ms(2);}
+#else
+#define MOSI_PIN	(1 << PB0)
+#define MISO_PIN 	(1 << PB1)
+#define SCK_PIN 	(1 << PB2)
+#define CSN_PIN     (1 << PB4)
+
+#define MIRF_CSN_HI     PORTB |=  CSN_PIN;
+#define MIRF_CSN_LO     PORTB &= ~CSN_PIN;
+#endif
+
 // Mirf settings
-#define mirf_CH         13
-#define mirf_PAYLOAD    16
-#define mirf_CONFIG     ( (1<<MASK_RX_DR) | (1<<EN_CRC) | (0<<CRCO) )
-
-#define CSN PB4
-
-#define mirf_CSN_hi     PORTB |=  (1<<CSN);
-#define mirf_CSN_lo     PORTB &= ~(1<<CSN);
+#define MIRF_CH         13
+#define MIRF_PAYLOAD    16
+#define MIRF_CONFIG     ((1 << MASK_RX_DR) | (1 << EN_CRC) | (0 << CRCO))
 
 extern void mirf_init();
 extern void mirf_config();

@@ -25,7 +25,7 @@
 */
 
 #include "mirf.h"
-#include "nRF24L01.h"
+#include "nrf24l01.h"
 #include "spi.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>

@@ -7,8 +7,7 @@
 
 #define USE_MICRO_WIRE
 
-#include <GyverOLED.h>
-
+#include <OLED.h>
 
 uint8_t DSdata[16];
 uint8_t rf_setup;
@@ -17,11 +16,6 @@ int wait = 0;
 
 GyverOLED oled;
 
-//void reset() {
-//    wdt_disable();
-//    wdt_enable(WDTO_15MS);
-//    while (1) {}
-//}
 void setup() {
     Serial.begin(57600);
     delay(2);
@@ -55,8 +49,8 @@ void setup() {
     oled.setCursor(0, 0);
     oled.scale2X();
     oled.print("Wait...");
-    //wdt_enable(WDTO_4S);
 }
+
 void loop() {
     //wdt_reset();
     delay(500);

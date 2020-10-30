@@ -1,22 +1,82 @@
+#include <util/delay.h>
 #include "mirf_tx.h"
-#include "nRF24L01.h"
-#include "spi.h"
+#include "nrf24l01.h"
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define TX_POWERUP mirf_config_register(CONFIG, mirf_CONFIG | ( (1<<PWR_UP) | (0<<PRIM_RX) ) )
+#define TX_POWERUP mirf_config_register(CONFIG, MIRF_CONFIG | ( (1 << PWR_UP) | (0 << PRIM_RX) ) )
+
+#ifdef NRF2PIN
+inline void spi_init()
+{
+    DDRB |= MOMI_PIN | SCK_PIN;
+    PORTB |= SCK_PIN;
+}
+
+uint8_t spi_send(uint8_t c)
+{
+    uint8_t datain, bits = 8;
+
+    do {
+        datain <<= 1;
+        if(PINB & MOMI_PIN) {datain++;}
+        DDRB |= MOMI_PIN; // output mode
+        if (c & 0x80) {PORTB |= MOMI_PIN;}
+
+        PORTB |= SCK_PIN;
+        PORTB &= ~SCK_PIN;
+
+        PORTB &= ~MOMI_PIN;
+        DDRB &= ~MOMI_PIN; // input mode
+
+        c <<= 1;
+
+    } while(--bits);
+
+    return datain;
+}
+#else
+inline void spi_init()
+{
+    DDRB |= MOSI_PIN | SCK_PIN;
+    PORTB &= ~SCK_PIN;
+}
+
+uint8_t spi_send(uint8_t c) {
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        if (c & 0x80)
+            PORTB |= MOSI_PIN;
+        else
+            PORTB &= ~MOSI_PIN;
+	    
+        PORTB |= SCK_PIN;
+        c <<= 1;
+	    
+        if(PINB & MISO_PIN)
+            c |= 1;
+	    
+        PORTB &= ~SCK_PIN;
+    }
+    return c;
+}
+#endif
 
 void mirf_init() 
 {
-    DDRB |= (1<<CSN);
-    mirf_CSN_hi;
+#ifndef NRF2PIN
+    DDRB |= (1 << CSN_PIN);
+#endif
+
     spi_init();
+    MIRF_CSN_HI;
 }
 
 void mirf_config() 
 {
-    mirf_config_register(RF_CH,mirf_CH);
-    mirf_config_register(RX_PW_P0, mirf_PAYLOAD);
+    mirf_config_register(RF_CH, MIRF_CH);
+    mirf_config_register(RX_PW_P0, MIRF_PAYLOAD);
 }
 
 void mirf_set_TADDR(uint8_t * adr)
@@ -26,37 +86,43 @@ void mirf_set_TADDR(uint8_t * adr)
 
 void mirf_config_register(uint8_t reg, uint8_t value)
 {
-    mirf_CSN_lo;
-    spi_fast_shift(W_REGISTER | (REGISTER_MASK & reg));
-    spi_fast_shift(value);
-    mirf_CSN_hi;
+    MIRF_CSN_LO;
+    spi_send(W_REGISTER | (REGISTER_MASK & reg));
+    spi_send(value);
+    MIRF_CSN_HI;
 }
 
 void mirf_read_register(uint8_t reg, uint8_t * value, uint8_t len)
 {
-    mirf_CSN_lo;
-    spi_fast_shift(R_REGISTER | (REGISTER_MASK & reg));
-    spi_transfer_sync(value,value,len);
-    mirf_CSN_hi;
+    MIRF_CSN_LO;
+    spi_send(R_REGISTER | (REGISTER_MASK & reg));
+    for(uint8_t i = 0; i < len; i++) {  // Write payload and read responce
+        value[i] = spi_send(value[i]);
+    }
+    MIRF_CSN_HI;
 }
 
 void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len) 
 {
-    mirf_CSN_lo;
-    spi_fast_shift(W_REGISTER | (REGISTER_MASK & reg));
-    spi_transmit_sync(value,len);
-    mirf_CSN_hi;
+    MIRF_CSN_LO;
+    spi_send(W_REGISTER | (REGISTER_MASK & reg));
+    for(uint8_t i = 0; i < len; i++) {  // Write payload
+        spi_send(value[i]);
+    }
+    MIRF_CSN_HI;
 }
 
 
 void mirf_send(uint8_t * value, uint8_t len) 
 {
-    TX_POWERUP;                     // Power up
-    mirf_CSN_lo;                    // Pull down chip select
-    spi_fast_shift( FLUSH_TX );     // Write cmd to flush tx fifo
-    mirf_CSN_hi;                    // Pull up chip select
-    mirf_CSN_lo;                    // Pull down chip select
-    spi_fast_shift( W_TX_PAYLOAD ); // Write cmd to write payload
-    spi_transmit_sync(value,len);   // Write payload
-    mirf_CSN_hi;                    // Pull up chip select
+    TX_POWERUP;                         // Power up
+    MIRF_CSN_LO;                        // Pull down chip select
+    spi_send(FLUSH_TX);                 // Write cmd to flush tx fifo
+    MIRF_CSN_HI;                        // Pull up chip select
+    MIRF_CSN_LO;                        // Pull down chip select
+    spi_send(W_TX_PAYLOAD);             // Write cmd to write payload
+    for(uint8_t i = 0; i < len; i++) {  // Write payload
+        spi_send(value[i]);
+    }
+    MIRF_CSN_HI;                        // Pull up chip select
 }
