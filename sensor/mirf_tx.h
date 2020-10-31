@@ -7,19 +7,19 @@
 
 //SPI
 #ifdef NRF2PIN
-#define MOMI_PIN	(1 << PB0)
-#define SCK_PIN 	(1 << PB2)
+#define MOMI_PIN	PB0
+#define SCK_PIN 	PB2
 
-#define MIRF_CSN_HI {PORTB |= SCK_PIN; _delay_ms(2);}
-#define MIRF_CSN_LO {PORTB &= ~SCK_PIN; _delay_ms(2);}
+#define MIRF_CSN_HI {PORTB |= _BV(SCK_PIN); _delay_us(500);}
+#define MIRF_CSN_LO {PORTB &= ~_BV(SCK_PIN); _delay_us(500);}
 #else
-#define MOSI_PIN	(1 << PB0)
-#define MISO_PIN 	(1 << PB1)
-#define SCK_PIN 	(1 << PB2)
-#define CSN_PIN     (1 << PB4)
+#define MOSI_PIN	PB0
+#define MISO_PIN 	PB1
+#define SCK_PIN 	PB2
+#define CSN_PIN     PB4
 
-#define MIRF_CSN_HI     PORTB |=  CSN_PIN;
-#define MIRF_CSN_LO     PORTB &= ~CSN_PIN;
+#define MIRF_CSN_HI     PORTB |=  _BV(CSN_PIN);
+#define MIRF_CSN_LO     PORTB &= ~_BV(CSN_PIN);
 #endif
 
 // Mirf settings

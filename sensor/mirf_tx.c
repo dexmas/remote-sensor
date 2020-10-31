@@ -10,8 +10,8 @@
 #ifdef NRF2PIN
 inline void spi_init()
 {
-    DDRB |= MOMI_PIN | SCK_PIN;
-    PORTB |= SCK_PIN;
+    DDRB |= _BV(MOMI_PIN) | _BV(SCK_PIN);
+    PORTB |= _BV(SCK_PIN);
 }
 
 uint8_t spi_send(uint8_t c)
@@ -20,15 +20,15 @@ uint8_t spi_send(uint8_t c)
 
     do {
         datain <<= 1;
-        if(PINB & MOMI_PIN) {datain++;}
-        DDRB |= MOMI_PIN; // output mode
-        if (c & 0x80) {PORTB |= MOMI_PIN;}
+        if(PINB & _BV(MOMI_PIN)) {datain++;}
+        DDRB |= _BV(MOMI_PIN); // output mode
+        if (c & 0x80) {PORTB |= _BV(MOMI_PIN);}
 
-        PORTB |= SCK_PIN;
-        PORTB &= ~SCK_PIN;
+        PORTB |= _BV(SCK_PIN);
+        PORTB &= ~_BV(SCK_PIN);
 
-        PORTB &= ~MOMI_PIN;
-        DDRB &= ~MOMI_PIN; // input mode
+        PORTB &= ~_BV(MOMI_PIN);
+        DDRB &= ~_BV(MOMI_PIN); // input mode
 
         c <<= 1;
 
@@ -39,25 +39,25 @@ uint8_t spi_send(uint8_t c)
 #else
 inline void spi_init()
 {
-    DDRB |= MOSI_PIN | SCK_PIN;
-    PORTB &= ~SCK_PIN;
+    DDRB |= _BV(MOSI_PIN) | _BV(SCK_PIN);
+    PORTB &= ~_BV(SCK_PIN);
 }
 
 uint8_t spi_send(uint8_t c) {
     for (uint8_t i = 0; i < 8; i++)
     {
         if (c & 0x80)
-            PORTB |= MOSI_PIN;
+            PORTB |= _BV(MOSI_PIN);
         else
-            PORTB &= ~MOSI_PIN;
+            PORTB &= ~_BV(MOSI_PIN);
 	    
-        PORTB |= SCK_PIN;
+        PORTB |= _BV(SCK_PIN);
         c <<= 1;
 	    
-        if(PINB & MISO_PIN)
+        if(PINB & _BV(MISO_PIN))
             c |= 1;
 	    
-        PORTB &= ~SCK_PIN;
+        PORTB &= ~_BV(SCK_PIN);
     }
     return c;
 }
@@ -66,7 +66,7 @@ uint8_t spi_send(uint8_t c) {
 void mirf_init() 
 {
 #ifndef NRF2PIN
-    DDRB |= (1 << CSN_PIN);
+    DDRB |= _BV(CSN_PIN);
 #endif
 
     spi_init();

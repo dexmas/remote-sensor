@@ -8,12 +8,10 @@
 #include "mirf_tx.h"
 #include "nRF24L01.h"
 
-#define DHT_BIT         3 // pin 3 -  TRANSMITPIN
-#define DHT_PORT        PORTB
-#define DHT_DDR         DDRB
-#define DHT_PIN         PINB
+#define SENSOR_ID 		3
 
-#define SLEEPDURATION 1 //0 //sleep duration in seconds/8, shall be a factor of 8
+#define DHT_BIT         PB1
+#define ADC_BIT			PB3
 
 // watchdog interrupt
 ISR(WDT_vect) {
@@ -26,7 +24,7 @@ void sleepFor8Secs(int oct) {
 	//инициализация ватчдога
 	wdt_reset();  // сбрасываем
 	if(oct == 1) {
-		wdt_enable(WDTO_250MS);  // разрешаем ватчдог 8 сек
+		wdt_enable(WDTO_1S);  // разрешаем ватчдог 8 сек
 	}else {
 		wdt_enable(WDTO_500MS);  // разрешаем ватчдог 1 сек
 	}
@@ -40,34 +38,60 @@ void sleepFor8Secs(int oct) {
 	sleep_disable();  // cancel sleep as a precaution
 }
 
-int dht22read() {
+inline uint8_t adcRead() {
+	ADCSRA |= _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0); // ADC prescaler :128, that gives ADC frequency of 9.6MHz/128 = 75kHz
+	ADMUX = _BV(REFS0) | ADC_BIT;   	// select internal band gap as reference and chose the ADC channel
+	
+	ADCSRA |= _BV(ADEN);                // switch on the ADC in general
+	ACSR &= ~_BV(ACD); 					// enable the analog comparator
+	
+	ADCSRA |= _BV(ADSC);                // start a single ADC conversion
+	while( ADCSRA & _BV(ADSC) );        // wait until conversion is complete
+
+	// data sheet recommends to discard first conversion, so we do one more
+	ADCSRA |= _BV(ADSC);                // start a single ADC conversion
+	while( ADCSRA & _BV(ADSC) );        // wait until conversion is complete
+	
+	uint8_t value = ADC;                        // take over ADC reading result into variable
+	
+	ADCSRA = 0;                         // completely disable the ADC to save power
+	ACSR |= _BV(ACD);  					// disable the analog comparator
+
+	return value;
+}
+
+inline int dht22read() {
 	// если в программе имеются прерывания,то не забывайте их отлючать перед чтением датчика
 	uint8_t  j = 0, i = 0;
 	uint8_t datadht[8];
 	
 	_delay_ms(2000);  //sleep till the intermediate processes in the accessories are settled down
 
-    DHT_DDR |= (1 << DHT_BIT);  //pin as output
-    DHT_PORT &= ~(1 << DHT_BIT);
+    DDRB |= _BV(DHT_BIT);  //pin as output
+    PORTB &= ~_BV(DHT_BIT);
 	_delay_ms(18);
-	DHT_PORT |= (1 << DHT_BIT);
-	DHT_DDR &= ~(1 << DHT_BIT);
+	PORTB |= _BV(DHT_BIT);
+	DDRB &= ~_BV(DHT_BIT);
 	_delay_us(50);  // +1 для attiny(коррекция без кварца)
-	if(DHT_PIN&(1 << DHT_BIT)) return 3;
+	if(PINB & _BV(DHT_BIT)) return 3;
 	_delay_us(80);  // +1 для attiny(коррекция без кварца)
-	if(!(DHT_PIN&(1 << DHT_BIT))) return 4;
-	while (DHT_PIN&(1 << DHT_BIT)) ;
+	if(!(PINB & _BV(DHT_BIT))) return 4;
+	while (PINB & _BV(DHT_BIT)) ;
 	for (j = 0; j < 5; j++) {
 		datadht[j] = 0;
 		for (i = 0; i < 8; i++) {
-			while (!(DHT_PIN&(1 << DHT_BIT))) ;
+			while (!(PINB & _BV(DHT_BIT))) ;
 			_delay_us(30);
-			if (DHT_PIN&(1 << DHT_BIT)) 
+			if (PINB & _BV(DHT_BIT)) 
 				datadht[j] |= 1 << (7 - i);
-			while (DHT_PIN&(1 << DHT_BIT)) ;
+			while (PINB & _BV(DHT_BIT)) ;
 		}
 	}
 	if (datadht[4] == ((datadht[0] + datadht[1] + datadht[2] + datadht[3]) & 0xFF)) {
+
+		datadht[5] = adcRead();
+		datadht[6] = SENSOR_ID;
+
         MIRF_CSN_LO;
 		_delay_ms(100);
 		MIRF_CSN_HI;
@@ -91,12 +115,11 @@ int dht22read() {
 int main()
 {	
 	int f;
-	//PORTB &= 0;  // turn off the pin power
-	//DDRB &= 0;  //change pin mode to reduce power consumption
-	DDRB |= (1 << 4);
 
-	ADCSRA &= ~(1 << ADEN);                      //turn off ADC
-	ACSR |= _BV(ACD);                          //disable the analog comparator
+	DDRB |= _BV(DHT_BIT);
+
+	ADCSRA = 0;        //turn off ADC
+	ACSR |= _BV(ACD);  //disable the analog comparator
 
     mirf_init();
 
@@ -113,9 +136,7 @@ int main()
 	for (;;) {
 		f = dht22read();
 		if (f == 0) {
-			for (f = 0; f < SLEEPDURATION; f++) {
-				sleepFor8Secs(1);
-			}
+			sleepFor8Secs(1);
 		}
 	}
 }

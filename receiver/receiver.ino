@@ -56,7 +56,7 @@ void loop() {
     delay(500);
     wait++;
 
-    char str_buf[16];
+    char str_buf[32];
 
     if(mirf_data_ready())  {
         mirf_read_register( STATUS, &rf_setup, sizeof(rf_setup));
@@ -81,7 +81,11 @@ void loop() {
         oled.print(fT > 0 ? "t+" : "t-");
         oled.print(str_buf);
 
-        Serial.print("Humid.: ");
+        Serial.print("ID: ");
+        Serial.print(DSdata[6]);
+        Serial.print(" Vbat.: ");
+        Serial.print(DSdata[5]);
+        Serial.print(" Humid.: ");
         Serial.print(fH);
         Serial.print("%, Temp.: ");
         Serial.print(fT);
@@ -90,7 +94,9 @@ void loop() {
         Serial.println(")");
     }
 
-    sprintf(str_buf,"recv: %03d wait: %03d", recieved%1000, (wait/2)%1000);
+    //sprintf(str_buf,"recv: %03d wait: %03d", recieved%1000, (wait/2)%1000);
+    int pcnt = (DSdata[5] * 99) / 255;
+    sprintf(str_buf,"I:%01d B:%02d T:%03d C:%03d", DSdata[6], (uint8_t)pcnt, (wait/2)%1000, recieved%1000);
 
     oled.setCursor(0, 3);
     oled.scale1X();
