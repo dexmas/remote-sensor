@@ -95,8 +95,9 @@ void loop() {
     }
 
     //sprintf(str_buf,"recv: %03d wait: %03d", recieved%1000, (wait/2)%1000);
-    int pcnt = (DSdata[5] * 99) / 255;
-    sprintf(str_buf,"I:%01d B:%02d T:%03d C:%03d", DSdata[6], (uint8_t)pcnt, (wait/2)%1000, recieved%1000);
+    //int pcnt = (DSdata[5] * 99) / 255;
+    //sprintf(str_buf,"I:%01d B:%02d T:%03d C:%03d", DSdata[6], (uint8_t)pcnt, (wait/2)%1000, recieved%1000);
+    sprintf(str_buf,"5:%03d 6:%03d  ", DSdata[5], DSdata[6]);
 
     oled.setCursor(0, 3);
     oled.scale1X();

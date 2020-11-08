@@ -39,11 +39,13 @@ void sleepFor8Secs(int oct) {
 }
 
 inline uint8_t adcRead() {
-	ADCSRA |= _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0); // ADC prescaler :128, that gives ADC frequency of 9.6MHz/128 = 75kHz
+	DDRB |= _BV(DHT_BIT);  //pin as output
+    PORTB &= ~_BV(DHT_BIT);
+
+	ADCSRA |= _BV(ADPS2); // ADC prescaler :128, that gives ADC frequency of 1.2MHz/16 = 75kHz
 	ADMUX = _BV(REFS0) | ADC_BIT;   	// select internal band gap as reference and chose the ADC channel
 	
 	ADCSRA |= _BV(ADEN);                // switch on the ADC in general
-	ACSR &= ~_BV(ACD); 					// enable the analog comparator
 	
 	ADCSRA |= _BV(ADSC);                // start a single ADC conversion
 	while( ADCSRA & _BV(ADSC) );        // wait until conversion is complete
@@ -52,10 +54,9 @@ inline uint8_t adcRead() {
 	ADCSRA |= _BV(ADSC);                // start a single ADC conversion
 	while( ADCSRA & _BV(ADSC) );        // wait until conversion is complete
 	
-	uint8_t value = ADC;                        // take over ADC reading result into variable
+	uint8_t value = ADC;               // take over ADC reading result into variable
 	
 	ADCSRA = 0;                         // completely disable the ADC to save power
-	ACSR |= _BV(ACD);  					// disable the analog comparator
 
 	return value;
 }
@@ -92,6 +93,8 @@ inline int dht22read() {
 		datadht[5] = adcRead();
 		datadht[6] = SENSOR_ID;
 
+		mirf_init();
+
         MIRF_CSN_LO;
 		_delay_ms(100);
 		MIRF_CSN_HI;
@@ -116,10 +119,9 @@ int main()
 {	
 	int f;
 
-	DDRB |= _BV(DHT_BIT);
-
+	DDRB = 0; //Turn off PORTB
+	PORTB = 0; //Turn off PORTB
 	ADCSRA = 0;        //turn off ADC
-	ACSR |= _BV(ACD);  //disable the analog comparator
 
     mirf_init();
 
@@ -136,6 +138,11 @@ int main()
 	for (;;) {
 		f = dht22read();
 		if (f == 0) {
+			DDRB = 0; //Turn off PORTB
+			PORTB = 0; //Turn off PORTB
+
+			ADCSRA = 0;        //turn off ADC
+
 			sleepFor8Secs(1);
 		}
 	}
