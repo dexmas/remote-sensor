@@ -4,17 +4,16 @@
 #include "spi.h"
 #include "spi.c"
 #include "nRF24L01.h"
+#include "U8glib.h"
 
-#define USE_MICRO_WIRE
-
-#include <OLED.h>
+#include <Arduino.h>
 
 uint8_t DSdata[16];
 uint8_t rf_setup;
 int recieved = 0;
 int wait = 0;
 
-GyverOLED oled;
+U8GLIB_ST7920_128X64 u8g(4, 3, 2, U8G_PIN_NONE);
 
 void setup() {
     Serial.begin(57600);
@@ -23,10 +22,9 @@ void setup() {
 
     //Need for delay 50ms before init dispaly
     delay(50);
-    oled.init(OLED128x32);
 
-    oled.inverse(false);
-    oled.clear();
+    u8g.setFont(u8g_font_8x13); 
+    u8g.setColorIndex(1);
     
     mirf_init();
     mirf_config();
@@ -46,9 +44,7 @@ void setup() {
     mirf_config_register(EN_RXADDR, 0x7F);
 
     Serial.println("Setup OK");
-    oled.setCursor(0, 0);
-    oled.scale2X();
-    oled.print("Wait...");
+    u8g.drawStr(0, 0, "Wait...");
 }
 
 void loop() {
@@ -74,12 +70,7 @@ void loop() {
             
         float fT = iT / 10.0f;
 
-        sprintf(str_buf, "%02d' h%02d%%", (int)(fT > 0 ? fT : -fT), (int)fH);
-
-        oled.setCursor(0, 0);
-        oled.scale2X();
-        oled.print(fT > 0 ? "t+" : "t-");
-        oled.print(str_buf);
+        sprintf(str_buf, "#%02d t%02d' h%02d%% (%02dv)", DSdata[6], (int)(fT > 0 ? fT : -fT), (int)fH, DSdata[5]);
 
         Serial.print("ID: ");
         Serial.print(DSdata[6]);
@@ -94,12 +85,17 @@ void loop() {
         Serial.println(")");
     }
 
-    //sprintf(str_buf,"recv: %03d wait: %03d", recieved%1000, (wait/2)%1000);
-    //int pcnt = (DSdata[5] * 99) / 255;
-    //sprintf(str_buf,"I:%01d B:%02d T:%03d C:%03d", DSdata[6], (uint8_t)pcnt, (wait/2)%1000, recieved%1000);
-    sprintf(str_buf,"5:%03d 6:%03d  ", DSdata[5], DSdata[6]);
+    u8g.firstPage();
+    do { 
+        u8g.setPrintPos(0, 10);
+        u8g.print(str_buf);
 
-    oled.setCursor(0, 3);
-    oled.scale1X();
-    oled.print(str_buf);
+        //sprintf(str_buf,"recv: %03d wait: %03d", recieved%1000, (wait/2)%1000);
+        //int pcnt = (DSdata[5] * 99) / 255;
+        //sprintf(str_buf,"I:%01d B:%02d T:%03d C:%03d", DSdata[6], (uint8_t)pcnt, (wait/2)%1000, recieved%1000);
+        //sprintf(str_buf,"5:%03d 6:%03d  ", DSdata[5], DSdata[6]);
+
+        //u8g.setPrintPos(0, 30);
+        //u8g.print(str_buf);
+     } while( u8g.nextPage() );
 }
