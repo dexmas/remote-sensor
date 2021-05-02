@@ -9,25 +9,33 @@
 #include "nRF24L01.h"
 
 #define SENSOR_ID 		3
-
-#define DHT_BIT         PB1
 #define ADC_BIT			PB3
+#define DHT_SDA			PB1
+#define DHT_SCL			PB4
+
+#define DHT_ADDR        0x38
+#define SDA_PORT PORTB
+#define SCL_PORT PORTB
+#define SDA_PIN DHT_SDA
+#define SCL_PIN DHT_SCL
+
+//#define I2C_TIMEOUT 100
+//#define I2C_SLOWMODE 1
+
+#include "i2c.h"
 
 // watchdog interrupt
 ISR(WDT_vect) {
 	WDTCR |= _BV(WDTIE);  // разрешаем прерывания по ватчдогу. Иначе будет резет.
 }
 
-void sleepFor8Secs(int oct) {
+void sleepFor8Secs() {
 	cli();
 	MCUSR = 0;   // clear various "reset" flags
 	//инициализация ватчдога
 	wdt_reset();  // сбрасываем
-	if(oct == 1) {
-		wdt_enable(WDTO_1S);  // разрешаем ватчдог 8 сек
-	}else {
-		wdt_enable(WDTO_500MS);  // разрешаем ватчдог 1 сек
-	}
+	wdt_enable(WDTO_8S);  // разрешаем ватчдог 8 сек
+
 	//WDTCR |= _BV(WDCE);
 	WDTCR &= ~_BV(WDE);
 	WDTCR |= _BV(WDTIE);  // разрешаем прерывания по ватчдогу. Иначе будет резет.
@@ -35,12 +43,12 @@ void sleepFor8Secs(int oct) {
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 	sleep_enable();
 	sleep_cpu();
-	sleep_disable();  // cancel sleep as a precaution
 }
 
 inline uint8_t adcRead() {
-	DDRB |= _BV(DHT_BIT);  //pin as output
-    PORTB &= ~_BV(DHT_BIT);
+	//Put DHT_SDA to GND for measure vBat (look at schema)
+	DDRB |= _BV(DHT_SDA);  //pin as output
+    PORTB &= ~_BV(DHT_SDA);
 
 	ADCSRA |= _BV(ADPS2); // ADC prescaler :128, that gives ADC frequency of 1.2MHz/16 = 75kHz
 	ADMUX = _BV(REFS0) | ADC_BIT;   	// select internal band gap as reference and chose the ADC channel
@@ -61,68 +69,60 @@ inline uint8_t adcRead() {
 	return value;
 }
 
-inline int dht22read() {
-	// если в программе имеются прерывания,то не забывайте их отлючать перед чтением датчика
-	uint8_t  j = 0, i = 0;
-	uint8_t datadht[8];
+int dataRead() {
+	uint8_t data[8] = {0};
 	
-	_delay_ms(2000);  //sleep till the intermediate processes in the accessories are settled down
+    i2c_start(DHT_ADDR<<1);
+    i2c_write(0xAC);
+    i2c_write(0x33);
+    i2c_write(0x00);
+    i2c_stop();
 
-    DDRB |= _BV(DHT_BIT);  //pin as output
-    PORTB &= ~_BV(DHT_BIT);
-	_delay_ms(18);
-	PORTB |= _BV(DHT_BIT);
-	DDRB &= ~_BV(DHT_BIT);
-	_delay_us(50);  // +1 для attiny(коррекция без кварца)
-	if(PINB & _BV(DHT_BIT)) return 3;
-	_delay_us(80);  // +1 для attiny(коррекция без кварца)
-	if(!(PINB & _BV(DHT_BIT))) return 4;
-	while (PINB & _BV(DHT_BIT)) ;
-	for (j = 0; j < 5; j++) {
-		datadht[j] = 0;
-		for (i = 0; i < 8; i++) {
-			while (!(PINB & _BV(DHT_BIT))) ;
-			_delay_us(30);
-			if (PINB & _BV(DHT_BIT)) 
-				datadht[j] |= 1 << (7 - i);
-			while (PINB & _BV(DHT_BIT)) ;
-		}
-	}
-	if (datadht[4] == ((datadht[0] + datadht[1] + datadht[2] + datadht[3]) & 0xFF)) {
+    i2c_start((DHT_ADDR<<1)|0x01);
+    byte status = i2c_read(true);
+    i2c_stop();
 
-		datadht[5] = adcRead();
-		datadht[6] = SENSOR_ID;
+    if(!(status & _BV(3))) {
+        return 1;
+    }
 
-		mirf_init();
+    if(status & _BV(7)) {
+        _delay_ms(80);
+    }
+    
+    i2c_start((DHT_ADDR<<1)|0x01);
+    for (uint8_t cnt=0; cnt < 6; cnt++) 
+    {
+      data[cnt] = i2c_read(cnt == 5);
+    }
+    i2c_stop();
 
-        MIRF_CSN_LO;
-		_delay_ms(100);
-		MIRF_CSN_HI;
+	data[6] = adcRead();
+	data[7] = SENSOR_ID;
 
-		// need time to come out of power down mode s. 6.1.7, table 16  datasheet says 1.5ms max, tested as low as 600us
-		mirf_config_register(CONFIG, MIRF_CONFIG | (1 << PWR_UP));
-		_delay_ms(1);
+	mirf_init();
 
-		mirf_send(datadht, MIRF_PAYLOAD);
-		_delay_us(10);
-		mirf_config_register(CONFIG, MIRF_CONFIG);
-		sleepFor8Secs(0);
-		// Reset status register for further interaction 
-		mirf_config_register(STATUS, (1 << TX_DS));  // Reset status register
-	
-		return 0;
-	}
-	return 1;
+	MIRF_CSN_LO;
+	_delay_ms(100);
+	MIRF_CSN_HI;
+
+	// need time to come out of power down mode s. 6.1.7, table 16  datasheet says 1.5ms max, tested as low as 600us
+	mirf_config_register(CONFIG, MIRF_CONFIG | (1 << PWR_UP));
+	_delay_ms(1);
+
+	mirf_send(data, MIRF_PAYLOAD);
+	_delay_us(10);
+	mirf_config_register(CONFIG, MIRF_CONFIG);
+	_delay_us(20);
+
+	// Reset status register for further interaction 
+	mirf_config_register(STATUS, (1 << TX_DS));  // Reset status register
+
+	return 0;
 }
 
 int main()
 {	
-	int f;
-
-	DDRB = 0; //Turn off PORTB
-	PORTB = 0; //Turn off PORTB
-	ADCSRA = 0;        //turn off ADC
-
     mirf_init();
 
 	// wait for mirf - is this necessary?
@@ -134,16 +134,37 @@ int main()
 	// disable enhanced shockburst
 	mirf_config_register(EN_AA, 0);  // no auto-ack  
 	mirf_set_TADDR((uint8_t *)"2Sens");
+
+	//Init AHT10
+	i2c_init();
+	_delay_ms(40);
+
+    i2c_start(DHT_ADDR<<1);
+    i2c_write(0xA8);
+    i2c_write(0x00);
+    i2c_write(0x00);
+    i2c_stop();
+
+    _delay_ms(350);
+
+    i2c_start(DHT_ADDR<<1);
+    i2c_write(0xE1);
+    i2c_write(0x08);
+    i2c_write(0x00);
+    i2c_stop();
+
+    _delay_ms(350);
+
+    i2c_start((DHT_ADDR<<1)|0x01);
+    byte status = i2c_read(true);
+    i2c_stop();
     	
-	for (;;) {
-		f = dht22read();
-		if (f == 0) {
-			DDRB = 0; //Turn off PORTB
-			PORTB = 0; //Turn off PORTB
+	while(1) {
+		if (!dataRead()) {
+			PORTB = 0;  //Turn off PORTB
+			ACSR |= _BV(ACD); //turn off comparator
 
-			ADCSRA = 0;        //turn off ADC
-
-			sleepFor8Secs(1);
+			sleepFor8Secs();
 		}
 	}
 }

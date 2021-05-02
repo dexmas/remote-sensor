@@ -24,7 +24,7 @@
 
 // Mirf settings
 #define MIRF_CH         13
-#define MIRF_PAYLOAD    16
+#define MIRF_PAYLOAD    8
 #define MIRF_CONFIG     ((1 << MASK_RX_DR) | (1 << EN_CRC) | (0 << CRCO))
 
 extern void mirf_init();

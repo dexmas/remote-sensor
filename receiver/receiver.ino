@@ -20,7 +20,7 @@ struct SSensorInfo
     float time;
 };
 
-uint8_t DSdata[16];
+uint8_t DSdata[8];
 uint8_t rf_setup;
 char str_buf[32];
 int render_delay = 0;
@@ -121,30 +121,27 @@ void loop() {
             status = 1;
         }
 
-        SSensorInfo& sensor = getSensor(DSdata[6]);
+        SSensorInfo& sensor = getSensor(DSdata[7]);
 
         sensor.time = 0.0f;
-        sensor.batt = float(DSdata[5]) / 255.0f;
+        sensor.batt = float(DSdata[6]) / 255.0f;
 
-        int iH = (DSdata[0] << 8) | DSdata[1];
-        sensor.hum = iH / 10.0f;
+        uint32_t uit = ((uint32_t)(DSdata[3] & 0x0F) << 16) | ((uint16_t)DSdata[4] << 8) | DSdata[5]; //20-bit raw temperature data
+        sensor.temp = (float)uit * 0.000191 - 50;
 
-        int iT = ((DSdata[2] & 0x7f ) << 8 ) + DSdata[3];
-        if (DSdata[2] & 0x80)
-            iT *= -1;
-            
-        sensor.temp = iT / 10.0f;
+        uint32_t uih = (((uint32_t)DSdata[1] << 16) | ((uint16_t)DSdata[2] << 8) | (DSdata[3])) >> 4; //20-bit raw humidity data
+        sensor.hum = (float)uih * 0.000095;
 
         Serial.print("ID: ");
         Serial.print(sensor.uid);
         Serial.print(" Vbat.: ");
-        Serial.print(sensor.batt);
+        Serial.print(DSdata[6]);
         Serial.print(" Humid.: ");
         Serial.print(sensor.hum);
         Serial.print("%, Temp.: ");
         Serial.print(sensor.temp);
         Serial.print("' (CRC: ");
-        Serial.print(DSdata[4], HEX);
+        Serial.print(0, HEX);
         Serial.println(")");
     }
 
