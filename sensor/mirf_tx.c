@@ -5,13 +5,14 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define TX_POWERUP mirf_config_register(CONFIG, MIRF_CONFIG | ( (1 << PWR_UP) | (0 << PRIM_RX) ) )
+#define TX_POWERUP mirf_config_register(CONFIG, MIRF_CONFIG | _BV(PWR_UP))
 
 #ifdef NRF2PIN
 inline void spi_init()
 {
     DDRB |= _BV(MOMI_PIN) | _BV(SCK_PIN);
     PORTB |= _BV(SCK_PIN);
+    PORTB &= ~_BV(MOMI_PIN);
 }
 
 uint8_t spi_send(uint8_t c)
@@ -111,7 +112,6 @@ void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len)
     }
     MIRF_CSN_HI;
 }
-
 
 void mirf_send(uint8_t * value, uint8_t len) 
 {

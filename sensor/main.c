@@ -1,5 +1,4 @@
 #include <avr/io.h>
-#include <avr/wdt.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <stdint.h>
@@ -8,14 +7,13 @@
 #include "mirf_tx.h"
 #include "nRF24L01.h"
 
-#define SENSOR_ID 		3
+#define SENSOR_ID 		1
 #define ADC_BIT			PB3
 #define DHT_SDA			PB1
-#define DHT_SCL			PB4
+#define DHT_SCL			MOMI_PIN
+#define WTD_CYCLE		7
 
 #define DHT_ADDR        0x38
-#define SDA_PORT PORTB
-#define SCL_PORT PORTB
 #define SDA_PIN DHT_SDA
 #define SCL_PIN DHT_SCL
 
@@ -24,25 +22,18 @@
 
 #include "i2c.h"
 
+char wtdcntr = 0;
+
 // watchdog interrupt
 ISR(WDT_vect) {
-	WDTCR |= _BV(WDTIE);  // разрешаем прерывания по ватчдогу. Иначе будет резет.
-}
-
-void sleepFor8Secs() {
-	cli();
-	MCUSR = 0;   // clear various "reset" flags
-	//инициализация ватчдога
-	wdt_reset();  // сбрасываем
-	wdt_enable(WDTO_8S);  // разрешаем ватчдог 8 сек
-
-	//WDTCR |= _BV(WDCE);
-	WDTCR &= ~_BV(WDE);
-	WDTCR |= _BV(WDTIE);  // разрешаем прерывания по ватчдогу. Иначе будет резет.
-	sei();  // разрешаем прерывания
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-	sleep_enable();
-	sleep_cpu();
+	wtdcntr++;
+	if(wtdcntr >= WTD_CYCLE)
+	{
+		cli();
+		dataRead();
+		wtdcntr = 0;
+		sei();
+	}
 }
 
 inline uint8_t adcRead() {
@@ -64,7 +55,8 @@ inline uint8_t adcRead() {
 	
 	uint8_t value = ADC;               // take over ADC reading result into variable
 	
-	ADCSRA = 0;                         // completely disable the ADC to save power
+	ADCSRA &= ~(1<<ADEN);              // completely disable the ADC to save power
+	PORTB |= _BV(DHT_SDA);			   // disable devider to save power
 
 	return value;
 }
@@ -72,6 +64,7 @@ inline uint8_t adcRead() {
 int dataRead() {
 	uint8_t data[8] = {0};
 	
+	i2c_init();
     i2c_start(DHT_ADDR<<1);
     i2c_write(0xAC);
     i2c_write(0x33);
@@ -112,32 +105,25 @@ int dataRead() {
 
 	mirf_send(data, MIRF_PAYLOAD);
 	_delay_us(10);
-	mirf_config_register(CONFIG, MIRF_CONFIG);
-	_delay_us(20);
 
-	// Reset status register for further interaction 
 	mirf_config_register(STATUS, (1 << TX_DS));  // Reset status register
+	_delay_us(2);
+
+	mirf_config_register(CONFIG, MIRF_CONFIG); //Power down
+
+	DDRB = _BV(DHT_SDA) | _BV(SCK_PIN);
+	PORTB = _BV(DHT_SDA) | _BV(SCK_PIN); // turn off all
 
 	return 0;
 }
 
 int main()
-{	
-    mirf_init();
-
-	// wait for mirf - is this necessary?
-	_delay_ms(50);
-
-	mirf_config();
-
-	mirf_config_register(SETUP_RETR, 0);  // no retransmit 
-	// disable enhanced shockburst
-	mirf_config_register(EN_AA, 0);  // no auto-ack  
-	mirf_set_TADDR((uint8_t *)"2Sens");
+{
+	cli();
 
 	//Init AHT10
 	i2c_init();
-	_delay_ms(40);
+	_delay_ms(25);
 
     i2c_start(DHT_ADDR<<1);
     i2c_write(0xA8);
@@ -145,7 +131,7 @@ int main()
     i2c_write(0x00);
     i2c_stop();
 
-    _delay_ms(350);
+    _delay_ms(100);
 
     i2c_start(DHT_ADDR<<1);
     i2c_write(0xE1);
@@ -153,18 +139,30 @@ int main()
     i2c_write(0x00);
     i2c_stop();
 
-    _delay_ms(350);
+    _delay_ms(100);
 
     i2c_start((DHT_ADDR<<1)|0x01);
     byte status = i2c_read(true);
     i2c_stop();
-    	
-	while(1) {
-		if (!dataRead()) {
-			PORTB = 0;  //Turn off PORTB
-			ACSR |= _BV(ACD); //turn off comparator
 
-			sleepFor8Secs();
-		}
+    mirf_init();
+
+	mirf_config();
+
+	mirf_config_register(SETUP_RETR, 0);  // no retransmit 
+	mirf_config_register(EN_AA, 0);  // no auto-ack  
+	mirf_set_TADDR((uint8_t *)"2Sens");
+
+	dataRead();
+    	
+	// prescale timer to 8s so we can measure current
+	WDTCR |= (1<<WDP3 )|(0<<WDP2 )|(0<<WDP1)|(1<<WDP0); // 8s
+	// Enable watchdog timer interrupts
+	WDTCR |= (1<<WDTIE);
+	sei(); // Enable global interrupts
+	// Use the Power Down sleep mode
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+	while(1) {
+		sleep_mode();   // go to sleep and wait for interrupt...
 	}
 }
