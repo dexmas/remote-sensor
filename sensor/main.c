@@ -7,7 +7,7 @@
 #include "mirf_tx.h"
 #include "nRF24L01.h"
 
-#define SENSOR_ID 		2
+#define SENSOR_ID 		1
 #define ADC_BIT			PB3
 #define DHT_SDA			PB1
 #define DHT_SCL			SCK_PIN
@@ -23,18 +23,6 @@
 #include "i2c.h"
 
 char wtdcntr = 0;
-
-// watchdog interrupt
-ISR(WDT_vect) {
-	wtdcntr++;
-	if(wtdcntr >= WTD_CYCLE)
-	{
-		cli();
-		dataRead();
-		wtdcntr = 0;
-		sei();
-	}
-}
 
 inline uint8_t adcRead() {
 	//Put DHT_SDA to GND for measure vBat (look at schema)
@@ -53,15 +41,18 @@ inline uint8_t adcRead() {
 	ADCSRA |= _BV(ADSC);                // start a single ADC conversion
 	while( ADCSRA & _BV(ADSC) );        // wait until conversion is complete
 	
-	uint8_t value = ADC;               // take over ADC reading result into variable
-	
-	ADCSRA &= ~(1<<ADEN);              // completely disable the ADC to save power
-	PORTB |= _BV(DHT_SDA);			   // disable devider to save power
+	uint8_t value = ADCL;        		// take over ADC reading result into variable
+	if(ADCH == 0x01)
+		value = 0x00;
+	if(ADCH == 0x03)
+		value = 0xFF;
+
+	ADCSRA &= ~(1<<ADEN);               // completely disable the ADC to save power
 
 	return value;
 }
 
-int dataRead() {
+void dataSend() {
 	uint8_t data[8] = {0};
 	
 	i2c_init();
@@ -113,8 +104,18 @@ int dataRead() {
 
 	DDRB = _BV(DHT_SDA) | _BV(SCK_PIN) | _BV(MOMI_PIN);
 	PORTB = _BV(DHT_SDA) | _BV(SCK_PIN); // turn off all
+}
 
-	return 0;
+// watchdog interrupt
+ISR(WDT_vect) {
+	wtdcntr++;
+	if(wtdcntr >= WTD_CYCLE)
+	{
+		cli();
+		dataSend();
+		wtdcntr = 0;
+		sei();
+	}
 }
 
 int main()
@@ -141,19 +142,21 @@ int main()
 
     _delay_ms(100);
 
-    i2c_start((DHT_ADDR<<1)|0x01);
-    byte status = i2c_read(true);
-    i2c_stop();
+    //i2c_start((DHT_ADDR<<1)|0x01);
+    //byte status = i2c_read(true);
+    //i2c_stop();
 
     mirf_init();
 
 	mirf_config();
 
-	mirf_config_register(SETUP_RETR, 0);  // no retransmit 
+	mirf_config_register(SETUP_RETR, (1 << 4) | 15); // retransmit 15 times with 500ns delay
 	mirf_config_register(EN_AA, 0);  // no auto-ack  
+	//mirf_config_register(RF_SETUP, (1<<5) | (3 << 1));  // 250 kbps and 0dBm 
+
 	mirf_set_TADDR((uint8_t *)"2Sens");
 
-	dataRead();
+	dataSend();
     	
 	// prescale timer to 8s so we can measure current
 	WDTCR |= (1<<WDP3 )|(0<<WDP2 )|(0<<WDP1)|(1<<WDP0); // 8s
