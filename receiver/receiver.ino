@@ -47,11 +47,14 @@ void setup() {
     
     mirf_init();
     mirf_config();
-    //mirf_config_register(SETUP_RETR, 0 ); // no retransmit 
-    mirf_config_register(EN_AA, 0); // no auto-ack 
-    //mirf_config_register(RF_SETUP, (1<<RF_DR_LOW) ); // low spd & power 
+
+    mirf_config_register(SETUP_RETR, (0 << 4) | 15); // retransmit 15 times with minimal delay
+    mirf_config_register(EN_AA, 1); // auto-ack enabled
+    //mirf_config_register(RF_SETUP, (1<<5) | (3 << 1)); // 250 kbps and 0dBm 
+
     mirf_set_TADDR((uint8_t *)"1Serv");
     mirf_set_RADDR((uint8_t *)"1Sens");
+
     mirf_config_register(RX_ADDR_P2,0x32);
     mirf_config_register(RX_PW_P2, mirf_PAYLOAD);
     mirf_config_register(RX_ADDR_P3,0x33);
