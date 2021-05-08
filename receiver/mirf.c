@@ -34,7 +34,6 @@
 #define TX_POWERUP mirf_config_register(CONFIG, mirf_CONFIG | ( (1<<PWR_UP) | (0<<PRIM_RX) ) )
 #define RX_POWERUP mirf_config_register(CONFIG, mirf_CONFIG | ( (1<<PWR_UP) | (1<<PRIM_RX) ) )
 
-
 // Flag which denotes transmitting mode
 //volatile uint8_t PTX;
 
@@ -63,7 +62,6 @@ void mirf_init()
     // Initialize spi module
     spi_init();
 }
-
 
 void mirf_config() 
 // Sets the important registers in the MiRF module and powers the module
@@ -147,7 +145,6 @@ void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len)
     spi_transmit_sync(value,len);
     mirf_CSN_hi;
 }
-
 
 void mirf_send(uint8_t * value, uint8_t len) 
 // Sends a data package to the default address. Be sure to send the correct

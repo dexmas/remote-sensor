@@ -23,8 +23,7 @@ struct SSensorInfo
 uint8_t DSdata[8];
 uint8_t rf_setup;
 char str_buf[32];
-int render_delay = 0;
-int status = 0;
+
 SSensorInfo sensors[SENSOR_COUNT];
 
 U8GLIB_ST7920_128X64 u8g(4, 3, 2, U8G_PIN_NONE);
@@ -49,7 +48,7 @@ void setup() {
     mirf_init();
     mirf_config();
     //mirf_config_register(SETUP_RETR, 0 ); // no retransmit 
-    mirf_config_register(EN_AA, 0 ); // no auto-ack 
+    mirf_config_register(EN_AA, 0); // no auto-ack 
     //mirf_config_register(RF_SETUP, (1<<RF_DR_LOW) ); // low spd & power 
     mirf_set_TADDR((uint8_t *)"1Serv");
     mirf_set_RADDR((uint8_t *)"1Sens");
@@ -70,8 +69,6 @@ void setup() {
         u8g.setPrintPos(42, 32);
         u8g.print("No data...");
     } while( u8g.nextPage() );  
-
-    status = 0;
 }
 
 SSensorInfo& getSensor(int _uid)
@@ -102,24 +99,15 @@ SSensorInfo& getSensor(int _uid)
 }
 
 void loop() {
-
-    delay(100);
-    render_delay += 100;
-    
-    for(int i=0; i<SENSOR_COUNT; i++)
+    /*for(int i=0; i<SENSOR_COUNT; i++)
     {
         if(sensors[i].uid != -1)
             sensors[i].time += 0.1f;
-    }
+    }*/
 
     if(mirf_data_ready())  {
         mirf_read_register( STATUS, &rf_setup, sizeof(rf_setup));
         mirf_get_data(DSdata);
-
-        if(status == 0)
-        {
-            status = 1;
-        }
 
         SSensorInfo& sensor = getSensor(DSdata[7]);
 
@@ -143,11 +131,6 @@ void loop() {
         Serial.print("' (CRC: ");
         Serial.print(0, HEX);
         Serial.println(")");
-    }
-
-    if(status > 0 && render_delay >= 500)
-    {
-        render_delay = 0;
 
         u8g.firstPage();
         do { 

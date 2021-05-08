@@ -7,10 +7,10 @@
 #include "mirf_tx.h"
 #include "nRF24L01.h"
 
-#define SENSOR_ID 		1
+#define SENSOR_ID 		2
 #define ADC_BIT			PB3
 #define DHT_SDA			PB1
-#define DHT_SCL			MOMI_PIN
+#define DHT_SCL			SCK_PIN
 #define WTD_CYCLE		7
 
 #define DHT_ADDR        0x38
@@ -111,7 +111,7 @@ int dataRead() {
 
 	mirf_config_register(CONFIG, MIRF_CONFIG); //Power down
 
-	DDRB = _BV(DHT_SDA) | _BV(SCK_PIN);
+	DDRB = _BV(DHT_SDA) | _BV(SCK_PIN) | _BV(MOMI_PIN);
 	PORTB = _BV(DHT_SDA) | _BV(SCK_PIN); // turn off all
 
 	return 0;
