@@ -7,7 +7,7 @@
 #include "mirf_tx.h"
 #include "nRF24L01.h"
 
-#define SENSOR_ID 		1
+#define SENSOR_ID 		5
 #define ADC_BIT			PB3
 #define DHT_SDA			PB1
 #define DHT_SCL			SCK_PIN
@@ -66,9 +66,9 @@ void dataSend() {
     byte status = i2c_read(true);
     i2c_stop();
 
-    if(!(status & _BV(3))) {
-        return 1;
-    }
+    //if(!(status & _BV(3))) {
+    //    return 1;
+    //}
 
     if(status & _BV(7)) {
         _delay_ms(80);
