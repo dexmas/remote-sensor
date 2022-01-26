@@ -7,7 +7,7 @@
 #include "mirf_tx.h"
 #include "nRF24L01.h"
 
-#define SENSOR_ID 		5
+#define SENSOR_ID 		6
 #define ADC_BIT			PB3
 #define DHT_SDA			PB1
 #define DHT_SCL			SCK_PIN
@@ -24,13 +24,13 @@
 
 char wtdcntr = 0;
 
-inline uint8_t adcRead() {
+uint8_t adcRead() {
 	//Put DHT_SDA to GND for measure vBat (look at schema)
 	DDRB |= _BV(DHT_SDA);  //pin as output
     PORTB &= ~_BV(DHT_SDA);
 
-	ADCSRA |= _BV(ADPS2); // ADC prescaler :128, that gives ADC frequency of 1.2MHz/16 = 75kHz
-	ADMUX = _BV(REFS0) | ADC_BIT;   	// select internal band gap as reference and chose the ADC channel
+	ADCSRA |= _BV(ADPS2); //1.2M / 16 = 75K
+	ADMUX = _BV(REFS0) | _BV(ADLAR) | ADC_BIT;   	// select internal band gap as reference and chose the ADC channel
 	
 	ADCSRA |= _BV(ADEN);                // switch on the ADC in general
 	
@@ -41,15 +41,11 @@ inline uint8_t adcRead() {
 	ADCSRA |= _BV(ADSC);                // start a single ADC conversion
 	while( ADCSRA & _BV(ADSC) );        // wait until conversion is complete
 	
-	uint8_t value = ADCL;        		// take over ADC reading result into variable
-	if(ADCH == 0x01)
-		value = 0x00;
-	if(ADCH == 0x03)
-		value = 0xFF;
+	uint16_t value = ADC >> 2;    		// take over ADC reading result into variable
 
 	ADCSRA &= ~(1<<ADEN);               // completely disable the ADC to save power
 
-	return value;
+	return value & 0xFF;
 }
 
 void dataSend() {

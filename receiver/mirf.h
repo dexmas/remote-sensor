@@ -35,8 +35,8 @@
 #define mirf_CONFIG     ( (1<<MASK_RX_DR) | (1<<EN_CRC) | (0<<CRCO) )
 
 // Pin definitions for chip select and chip enabled of the MiRF module
-#define CE  PD6
-#define CSN PD7
+#define CE  PD7
+#define CSN PD6
 
 // Definitions for selecting and enabling MiRF module
 #define mirf_CSN_hi     PORTD |=  (1<<CSN);
@@ -45,18 +45,18 @@
 #define mirf_CE_lo      PORTD &= ~(1<<CE);
 
 // Public standart functions
-extern void mirf_init();
-extern void mirf_config();
-extern void mirf_send(uint8_t * value, uint8_t len);
-extern void mirf_set_RADDR(uint8_t * adr);
-extern void mirf_set_TADDR(uint8_t * adr);
-extern uint8_t mirf_data_ready();
-extern void mirf_get_data(uint8_t * data);
+void mirf_init();
+void mirf_config();
+void mirf_send(uint8_t * value, uint8_t len);
+void mirf_set_RADDR(uint8_t * adr);
+void mirf_set_TADDR(uint8_t * adr);
+uint8_t mirf_data_ready();
+void mirf_get_data(uint8_t * data);
 
 
 // Public extended functions
-extern void mirf_config_register(uint8_t reg, uint8_t value);
-extern void mirf_read_register(uint8_t reg, uint8_t * value, uint8_t len);
-extern void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len);
+void mirf_config_register(uint8_t reg, uint8_t value);
+void mirf_read_register(uint8_t reg, uint8_t * value, uint8_t len);
+void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len);
 
 #endif /* _MIRF_H_ */

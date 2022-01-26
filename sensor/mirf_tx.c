@@ -8,7 +8,7 @@
 #define TX_POWERUP mirf_config_register(CONFIG, MIRF_CONFIG | _BV(PWR_UP))
 
 #ifdef NRF2PIN
-inline void spi_init()
+void spi_init()
 {
     DDRB |= _BV(MOMI_PIN) | _BV(SCK_PIN);
     PORTB |= _BV(SCK_PIN);
@@ -38,7 +38,7 @@ uint8_t spi_send(uint8_t c)
     return datain;
 }
 #else
-inline void spi_init()
+void spi_init()
 {
     DDRB |= _BV(MOSI_PIN) | _BV(SCK_PIN);
     PORTB &= ~_BV(SCK_PIN);

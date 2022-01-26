@@ -1,15 +1,18 @@
 #include <avr/wdt.h>
 #include "mirf.h"
-#include "mirf.c"
-#include "spi.h"
-#include "spi.c"
 #include "nRF24L01.h"
-#include "U8glib.h"
 
 #include <Arduino.h>
 
+#include <SPI.h>
+#include "Ucglib.h"
+
 #define SENSOR_COUNT 32
-#define LINE_HEIGHT 8
+
+#define TFT_DC  4
+#define TFT_RST 3
+#define TFT_CS  2
+#define TFT_LED 5
 
 struct SSensorInfo
 {
@@ -22,14 +25,14 @@ struct SSensorInfo
 
 uint8_t DSdata[8];
 uint8_t rf_setup;
-char str_buf[32];
+char str_buf[64];
+
+Ucglib_ILI9341_18x240x320_HWSPI ucg(TFT_DC, TFT_CS, TFT_RST);
 
 SSensorInfo sensors[SENSOR_COUNT];
 
-U8GLIB_ST7920_128X64 u8g(4, 3, 2, U8G_PIN_NONE);
-
 void setup() {
-    Serial.begin(57600);
+    Serial.begin(9600);
     delay(2);
     Serial.println("Mirf Init");
 
@@ -41,9 +44,6 @@ void setup() {
         sensors[i].batt = 0.0f;
         sensors[i].time = 0.0f;
     }
-
-    u8g.setFont(u8g_font_6x10); 
-    u8g.setColorIndex(1);
     
     mirf_init();
     mirf_config();
@@ -65,13 +65,22 @@ void setup() {
     mirf_config_register(RX_PW_P5, mirf_PAYLOAD);
     mirf_config_register(EN_RXADDR, 0x7F);
 
-    Serial.println("Setup OK");
-    
-    u8g.firstPage();
-    do { 
-        u8g.setPrintPos(42, 32);
-        u8g.print("No data...");
-    } while( u8g.nextPage() );  
+    // Enable LCD LED
+    pinMode(TFT_LED, OUTPUT);
+    digitalWrite(TFT_LED, HIGH);
+
+    ucg.begin(UCG_FONT_MODE_TRANSPARENT);
+    ucg.setRotate270();
+
+    ucg.setColor(0, 0, 0, 60);
+    ucg.drawBox(0, 0, 320, 240);
+    ucg.setColor(0, 255, 0, 0);
+    ucg.setFontMode(UCG_FONT_MODE_TRANSPARENT);
+    ucg.setPrintPos(85, 130);
+    ucg.setFont(ucg_font_logisoso28_hr);
+    ucg.print("No data...");
+
+    Serial.println("Setup OK"); 
 }
 
 SSensorInfo& getSensor(int _uid)
@@ -102,15 +111,16 @@ SSensorInfo& getSensor(int _uid)
 }
 
 void loop() {
-    /*for(int i=0; i<SENSOR_COUNT; i++)
-    {
-        if(sensors[i].uid != -1)
-            sensors[i].time += 0.1f;
-    }*/
-
     if(mirf_data_ready())  {
         mirf_read_register( STATUS, &rf_setup, sizeof(rf_setup));
         mirf_get_data(DSdata);
+
+        //if(sensors[0].uid == -1) // First datat receive
+        {
+          //Clear screen
+          ucg.setColor(0, 0, 0, 60);
+          ucg.drawBox(0, 0, 320, 240);
+        }
 
         SSensorInfo& sensor = getSensor(DSdata[7]);
 
@@ -135,28 +145,32 @@ void loop() {
         Serial.print(0, HEX);
         Serial.println(")");
 
-        u8g.firstPage();
-        do { 
-            int y_pos = 7;
-            for(int i=0; i<SENSOR_COUNT; i++)
+        // Print on display
+        int y_pos = 68;
+        for(int i=0; i<SENSOR_COUNT; i++)
+        {
+            if(sensors[i].uid != -1)
             {
-                if(sensors[i].uid != -1)
-                {
-                    sprintf(str_buf, "#%02d t%02.2f' h%02.2f%% (%.2f%%)", sensors[i].uid, sensors[i].temp, sensors[i].hum, sensors[i].batt);
-                    u8g.setPrintPos(0, y_pos);
-                    u8g.print("#");
-                    u8g.print(sensors[i].uid, 1);
-                    u8g.print(" t");
-                    u8g.print(sensors[i].temp, 1);
-                    u8g.print("' h");
-                    u8g.print(sensors[i].hum, 1);
-                    u8g.print("% b");
-                    u8g.print(int(sensors[i].batt * 100));
-                    u8g.print("%");
+                //sprintf(str_buf, "#%02d T:%f' H:%f%% BT:%d%%", sensors[i].uid, double(sensors[i].temp), double(sensors[i].hum), int(sensors[i].batt * 100.0f));
+                //sprintf(str_buf, "#09 T:51.23' H:22.7%% BT:41%%");
 
-                    y_pos += LINE_HEIGHT;
-                }
+                ucg.setFontMode(UCG_FONT_MODE_TRANSPARENT);
+                ucg.setFont(ucg_font_logisoso16_hr);
+                ucg.setColor(0, 255, 255, 255);		// use white as main color for the font
+                ucg.setPrintPos(45, y_pos);
+
+                ucg.print("#");
+                ucg.print(sensors[i].uid, 1);
+                ucg.print(" T:");
+                ucg.print(sensors[i].temp, 1);
+                ucg.print("' H:");
+                ucg.print(sensors[i].hum, 1);
+                ucg.print("% BT:");
+                ucg.print(int(sensors[i].batt * 100));
+                ucg.print("%");
+
+                y_pos += 22;
             }
-        } while( u8g.nextPage() );
+        }
     }
 }

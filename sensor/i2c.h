@@ -2,7 +2,10 @@
 #define _SOFTI2C_H   1
 
 #include <avr/io.h>
-#include <Arduino.h>
+
+typedef unsigned char byte;
+#define true 1
+#define false 0
 
 // Init function. Needs to be called once in the beginning.
 // Returns false if SDA or SCL are low, which probably means 
