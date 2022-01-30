@@ -113,7 +113,7 @@ uint8_t getSensor(uint8_t _uid, SSensorInfo& _sensor_out)
     return 255;
 }
 
-void DrawSensor(const SSensorInfo& _info, uint8_t _place)
+void DrawSensor(const SSensorInfo& _info, uint8_t _place, bool _selected = false)
 {
     int cellX = _place % 3;
     int cellY = _place / 3;
@@ -146,10 +146,25 @@ void DrawSensor(const SSensorInfo& _info, uint8_t _place)
 
     ucg.drawRBox(startX, startY, 100, 75, 15);
 
+    ucg.setColor(0, 255, 255, 255);	
+    ucg.setColor(1, 255, 255, 255);
+    ucg.setColor(2, 255, 255, 255);
+    ucg.setColor(3, 255, 255, 255);
+
+    ucg.drawDisc(startX + 15, startY + 15, 15, UCG_DRAW_UPPER_LEFT);
+    ucg.drawBox(startX + 15, startY, 5, 25);
+    ucg.drawBox(startX, startY + 15, 20, 10);
+
+    if(_selected)
+    {
+        ucg.drawRFrame(startX, startY, 100, 75, 15);
+    }
+
+
     ucg.setFontMode(UCG_FONT_MODE_TRANSPARENT);
     ucg.setFont(ucg_font_logisoso16_hr);
-    ucg.setColor(0, 255, 255, 255);		// use white as main color for the font
-    ucg.setPrintPos(startX + 10, startY + 30);
+    ucg.setColor(0, 0, 0, 255);		// use white as main color for the font
+    ucg.setPrintPos(startX + 5, startY + 23);
     ucg.print(_info.uid, 1);
 
     ucg.setColor(0, 255, 255, 0);		// use yellow for temperature
@@ -217,6 +232,6 @@ void loop() {
         Serial.print(0, HEX);
         Serial.println(")");
 
-        DrawSensor(sensor, place);
+        DrawSensor(sensor, place, place == 0 ? true : false);
     }
 }
