@@ -16,7 +16,7 @@
 
 struct SSensorInfo
 {
-    int uid;
+    uint8_t uid;
     float temp;
     float hum;
     float batt;
@@ -38,7 +38,7 @@ void setup() {
 
     for(int i=0; i<SENSOR_COUNT; i++)
     {
-        sensors[i].uid = -1;
+        sensors[i].uid = 255;
         sensors[i].temp = 0.0f;
         sensors[i].hum = 0.0f;
         sensors[i].batt = 0.0f;
@@ -83,31 +83,93 @@ void setup() {
     Serial.println("Setup OK"); 
 }
 
-SSensorInfo& getSensor(int _uid)
+uint8_t getSensor(uint8_t _uid, SSensorInfo& _sensor_out)
 {
-    for(int i=0; i<SENSOR_COUNT; i++)
+    //Serial.print("Get sensor for ID: ");
+    //Serial.print(_uid);
+    uint8_t i = 0;
+    for(i = 0; i < SENSOR_COUNT; i++)
     {
         if(sensors[i].uid == _uid)
-            return sensors[i];
-    }
-    for(int i=0; i<SENSOR_COUNT; i++)
-    {
-        if(sensors[i].uid == -1)
         {
-            sensors[i].uid = _uid;
-            return sensors[i];
+            //Serial.print(". Fount in place: ");
+            //Serial.println(i);
+            _sensor_out = sensors[i];
+            return i;
         }
     }
-    float time = 0.0f;
-    int id = 0;
-    for(int i=0; i<SENSOR_COUNT; i++)
+    for(i = 0; i < SENSOR_COUNT; i++)
     {
-        if(sensors[i].time > time)
-            id = i;
+        if(sensors[i].uid == 255)
+        {
+            //Serial.print(". Not found. Create in place: ");
+            //Serial.println(i);
+            sensors[i].uid = _uid;
+            _sensor_out = sensors[i];
+            return i;
+        }
     }
 
-    sensors[id].uid = _uid;
-    return sensors[id];
+    return 255;
+}
+
+void DrawSensor(const SSensorInfo& _info, uint8_t _place)
+{
+    int cellX = _place % 3;
+    int cellY = _place / 3;
+    int startX = 5 + cellX * 105;
+    int startY = 5 + cellY * 80;
+
+    /*Serial.print("Draw sensor ID: ");
+    Serial.print(_info.uid);
+    Serial.print(", Place: ");
+    Serial.print(_place);
+    Serial.print(", CellX: ");
+    Serial.print(cellX);
+    Serial.print(", CellY: ");
+    Serial.println(cellY);*/
+
+    if(_info.batt < 0.3)
+    {
+        ucg.setColor(0, 225, 0, 0);	
+        ucg.setColor(1, 225, 0, 0);
+        ucg.setColor(2, 225, 0, 0);
+        ucg.setColor(3, 225, 0, 0);
+    }
+    else
+    {
+        ucg.setColor(0, 0, 0, 255);	
+        ucg.setColor(1, 0, 0, 255);
+        ucg.setColor(2, 0, 0, 255);
+        ucg.setColor(3, 0, 0, 255);
+    }
+
+    ucg.drawRBox(startX, startY, 100, 75, 15);
+
+    ucg.setFontMode(UCG_FONT_MODE_TRANSPARENT);
+    ucg.setFont(ucg_font_logisoso16_hr);
+    ucg.setColor(0, 255, 255, 255);		// use white as main color for the font
+    ucg.setPrintPos(startX + 10, startY + 30);
+    ucg.print(_info.uid, 1);
+
+    ucg.setColor(0, 255, 255, 0);		// use yellow for temperature
+    ucg.setPrintPos(startX + 30, startY + 25);
+    ucg.print("t");
+    ucg.print(_info.temp, 2);
+    ucg.print("'");
+
+    ucg.setColor(0, 0, 255, 0);		// use green for temperature
+    ucg.setPrintPos(startX + 30, startY + 45);
+    ucg.print("h");
+    ucg.print(_info.hum, 1);
+    ucg.print("%");
+
+    ucg.setFont(ucg_font_7x14_mf);
+    ucg.setColor(0, 180, 180, 180);		// use grey for batt
+    ucg.setPrintPos(startX + 20, startY + 65);
+    ucg.print("bat. ");
+    ucg.print(int(_info.batt * 100));
+    ucg.print("%");
 }
 
 void loop() {
@@ -115,14 +177,24 @@ void loop() {
         mirf_read_register( STATUS, &rf_setup, sizeof(rf_setup));
         mirf_get_data(DSdata);
 
-        //if(sensors[0].uid == -1) // First datat receive
+        if(sensors[0].uid == 255) // First datat receive
         {
           //Clear screen
           ucg.setColor(0, 0, 0, 60);
           ucg.drawBox(0, 0, 320, 240);
         }
 
-        SSensorInfo& sensor = getSensor(DSdata[7]);
+        SSensorInfo sensor;
+        uint8_t place = getSensor(DSdata[7], sensor);
+
+        if(place == 255) 
+        {
+            Serial.print("Error. Accordinf place for sensor: ");
+            Serial.print(DSdata[7]);
+            Serial.println(" Not found. Skip drawing.");
+
+            return;
+        }
 
         sensor.time = 0.0f;
         sensor.batt = float(DSdata[6]) / 255.0f;
@@ -145,32 +217,6 @@ void loop() {
         Serial.print(0, HEX);
         Serial.println(")");
 
-        // Print on display
-        int y_pos = 68;
-        for(int i=0; i<SENSOR_COUNT; i++)
-        {
-            if(sensors[i].uid != -1)
-            {
-                //sprintf(str_buf, "#%02d T:%f' H:%f%% BT:%d%%", sensors[i].uid, double(sensors[i].temp), double(sensors[i].hum), int(sensors[i].batt * 100.0f));
-                //sprintf(str_buf, "#09 T:51.23' H:22.7%% BT:41%%");
-
-                ucg.setFontMode(UCG_FONT_MODE_TRANSPARENT);
-                ucg.setFont(ucg_font_logisoso16_hr);
-                ucg.setColor(0, 255, 255, 255);		// use white as main color for the font
-                ucg.setPrintPos(45, y_pos);
-
-                ucg.print("#");
-                ucg.print(sensors[i].uid, 1);
-                ucg.print(" T:");
-                ucg.print(sensors[i].temp, 1);
-                ucg.print("' H:");
-                ucg.print(sensors[i].hum, 1);
-                ucg.print("% BT:");
-                ucg.print(int(sensors[i].batt * 100));
-                ucg.print("%");
-
-                y_pos += 22;
-            }
-        }
+        DrawSensor(sensor, place);
     }
 }
