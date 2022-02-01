@@ -30,9 +30,9 @@
 #include <avr/io.h>
 
 // Mirf settings
-#define mirf_CH         13
-#define mirf_PAYLOAD    8
-#define mirf_CONFIG     ( (1<<MASK_RX_DR) | (1<<EN_CRC) | (0<<CRCO) )
+#define MIRF_CH         13
+#define MIRF_PAYLOAD    10
+#define MIRF_CONFIG     ( (1<<MASK_RX_DR) | (1<<EN_CRC) | (1<<CRCO) )
 
 // Pin definitions for chip select and chip enabled of the MiRF module
 #define CE  PD7

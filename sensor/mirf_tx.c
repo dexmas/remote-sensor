@@ -74,12 +74,6 @@ void mirf_init()
     MIRF_CSN_HI;
 }
 
-void mirf_config() 
-{
-    mirf_config_register(RF_CH, MIRF_CH);
-    mirf_config_register(RX_PW_P0, MIRF_PAYLOAD);
-}
-
 void mirf_set_TADDR(uint8_t * adr)
 {
     mirf_write_register(TX_ADDR, adr,5);

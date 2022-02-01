@@ -4,18 +4,17 @@
 #include <stdint.h>
 #include <util/delay.h>
 
-#include "mirf_tx.h"
-#include "nRF24L01.h"
-
-#define SENSOR_ID 		6
-#define ADC_BIT			PB3
-#define DHT_SDA			PB1
-#define DHT_SCL			SCK_PIN
+#define SENSOR_ID 		1
 #define WTD_CYCLE		7
 
 #define DHT_ADDR        0x38
-#define SDA_PIN DHT_SDA
-#define SCL_PIN DHT_SCL
+#define SDA_PIN 		PB1
+#define SCL_PIN 		PB2
+#define AUX_PIN			PB4
+#define ADC_PIN			PB3
+
+#include "mirf_tx.h"
+#include "nRF24L01.h"
 
 //#define I2C_TIMEOUT 100
 //#define I2C_SLOWMODE 1
@@ -24,13 +23,13 @@
 
 char wtdcntr = 0;
 
-uint8_t adcRead() {
-	//Put DHT_SDA to GND for measure vBat (look at schema)
-	DDRB |= _BV(DHT_SDA);  //pin as output
-    PORTB &= ~_BV(DHT_SDA);
+uint16_t  adcRead() {
+	//Put SDA_PIN to GND for measure vBat (look at schema)
+	DDRB |= _BV(SDA_PIN);  //pin as output
+    PORTB &= ~_BV(SDA_PIN);
 
 	ADCSRA |= _BV(ADPS2); //1.2M / 16 = 75K
-	ADMUX = _BV(REFS0) | _BV(ADLAR) | ADC_BIT;   	// select internal band gap as reference and chose the ADC channel
+	ADMUX = _BV(REFS0) | ADC_PIN;   	// select internal band gap as reference and chose the ADC channel
 	
 	ADCSRA |= _BV(ADEN);                // switch on the ADC in general
 	
@@ -41,30 +40,93 @@ uint8_t adcRead() {
 	ADCSRA |= _BV(ADSC);                // start a single ADC conversion
 	while( ADCSRA & _BV(ADSC) );        // wait until conversion is complete
 	
-	uint16_t value = ADC >> 2;    		// take over ADC reading result into variable
+	uint16_t adc = ADC;    		// take over ADC reading result into variable
 
 	ADCSRA &= ~(1<<ADEN);               // completely disable the ADC to save power
 
-	return value & 0xFF;
+	return adc;
 }
 
-void dataSend() {
-	uint8_t data[8] = {0};
+#ifdef DEBUG_UART
+
+#define SOFT_TX_PIN (1 << PB4) // PB1 будет работать как TXD 
+#define SOFT_TX_PORT PORTB
+#define SOFT_TX_DDR DDRB
+
+void uart_tx_init()
+{
+  TCCR0A = 1 << WGM01;		// compare mode
+  TCCR0B = 1 << CS00;		// prescaler 1
+  SOFT_TX_PORT |= SOFT_TX_PIN;
+  SOFT_TX_DDR |= SOFT_TX_PIN;
+  OCR0A = 78;			//115200 baudrate at prescaler 1
+}
+
+void uart_send_byte(unsigned char data)
+{
+  unsigned char i;
+  TCCR0B = 0;
+  TCNT0 = 0;
+  TIFR0 |= 1 << OCF0A;
+  TCCR0B |= (1 << CS00);
+  TIFR0 |= 1 << OCF0A;
+  SOFT_TX_PORT &= ~SOFT_TX_PIN;
+  while (!(TIFR0 & (1 << OCF0A)));
+  TIFR0 |= 1 << OCF0A;
+  for (i = 0; i < 8; i++)
+  {
+    if (data & 1)
+      SOFT_TX_PORT |= SOFT_TX_PIN;
+    else
+      SOFT_TX_PORT &= ~SOFT_TX_PIN;
+    data >>= 1;
+    while (!(TIFR0 & (1 << OCF0A)));
+    TIFR0 |= 1 << OCF0A;
+  }
+  SOFT_TX_PORT |= SOFT_TX_PIN;
+  while (!(TIFR0 & (1 << OCF0A)));
+  TIFR0 |= 1 << OCF0A;
+}
+
+void uart_print(char *str)
+{
+  byte i = 0;
+  while (str[i]) {
+    uart_send_byte(str[i++]);
+  }
+}
+
+void itoa(uint16_t n, char s[]) {
+	 uint8_t i = 0;
+	 do { s[i++] = n % 10 + '0'; } 
+	 while ((n /= 10) > 0);
+	 s[i] = '\0';
+	 // Reversing
+	 uint8_t j;
+	 char c;
+	 for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
+		 c = s[i];
+		 s[i] = s[j];
+		 s[j] = c;
+	 }
+ }
+
+#endif
+
+void dataSend() 
+{
+	uint8_t data[10] = {0};
 	
 	i2c_init();
-    i2c_start(DHT_ADDR<<1);
+    i2c_start(DHT_ADDR << 1);
     i2c_write(0xAC);
     i2c_write(0x33);
     i2c_write(0x00);
     i2c_stop();
 
-    i2c_start((DHT_ADDR<<1)|0x01);
+    i2c_start((DHT_ADDR << 1)|0x01);
     byte status = i2c_read(true);
     i2c_stop();
-
-    //if(!(status & _BV(3))) {
-    //    return 1;
-    //}
 
     if(status & _BV(7)) {
         _delay_ms(80);
@@ -77,8 +139,23 @@ void dataSend() {
     }
     i2c_stop();
 
-	data[6] = adcRead();
-	data[7] = SENSOR_ID;
+	uint16_t adc = adcRead();
+
+	data[6] = adc >> 8;
+	data[7] = adc & 0xFF;
+	data[8] = SENSOR_ID;
+	data[9] = SENSOR_ID;
+
+#ifdef DEBUG_UART
+	char buff[8];
+
+	uart_tx_init();
+	
+	uart_print("ADC: ");
+	itoa(adc, buff);
+	uart_print(buff);
+	uart_print("\r\n");
+#endif
 
 	mirf_init();
 
@@ -98,8 +175,9 @@ void dataSend() {
 
 	mirf_config_register(CONFIG, MIRF_CONFIG); //Power down
 
-	DDRB = _BV(DHT_SDA) | _BV(SCK_PIN) | _BV(MOMI_PIN);
-	PORTB = _BV(DHT_SDA) | _BV(SCK_PIN); // turn off all
+	// Turn off all: all PB pins as input and internal pullups turned on
+	DDRB = 0x00;
+	PORTB = _BV(AUX_PIN) | _BV(MOMI_PIN); // turn on pullups on MOMI and AUX
 }
 
 // watchdog interrupt
@@ -144,11 +222,12 @@ int main()
 
     mirf_init();
 
-	mirf_config();
+	mirf_config_register(RF_CH, MIRF_CH);
+	mirf_config_register(RX_PW_P0, MIRF_PAYLOAD);
 
-	mirf_config_register(SETUP_RETR, (1 << 4) | 15); // retransmit 15 times with 500ns delay
-	mirf_config_register(EN_AA, 0);  // no auto-ack  
-	//mirf_config_register(RF_SETUP, (1<<5) | (3 << 1));  // 250 kbps and 0dBm 
+	mirf_config_register(SETUP_RETR, (1 << 4) | 15); // retransmit 15 times with 2ms delay
+	mirf_config_register(EN_AA, 0);
+	mirf_config_register(RF_SETUP, (1<<5));  // 250 kbps and 0dBm 
 
 	mirf_set_TADDR((uint8_t *)"2Sens");
 

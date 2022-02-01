@@ -19,11 +19,11 @@ struct SSensorInfo
     uint8_t uid;
     float temp;
     float hum;
-    float batt;
+    uint16_t batt;
     float time;
 };
 
-uint8_t DSdata[8];
+uint8_t DSdata[10];
 uint8_t rf_setup;
 char str_buf[64];
 
@@ -41,28 +41,28 @@ void setup() {
         sensors[i].uid = 255;
         sensors[i].temp = 0.0f;
         sensors[i].hum = 0.0f;
-        sensors[i].batt = 0.0f;
+        sensors[i].batt = 0;
         sensors[i].time = 0.0f;
     }
     
     mirf_init();
     mirf_config();
 
-    mirf_config_register(SETUP_RETR, (0 << 4) | 15); // retransmit 15 times with minimal delay
+    mirf_config_register(SETUP_RETR, (8 << 4) | 15); // retransmit 15 times with 2ms delay
     mirf_config_register(EN_AA, 1); // auto-ack enabled
-    //mirf_config_register(RF_SETUP, (1<<5) | (3 << 1)); // 250 kbps and 0dBm 
+    mirf_config_register(RF_SETUP, (1<<5)); // 250 kbps and 0dBm 
 
     mirf_set_TADDR((uint8_t *)"1Serv");
     mirf_set_RADDR((uint8_t *)"1Sens");
 
     mirf_config_register(RX_ADDR_P2,0x32);
-    mirf_config_register(RX_PW_P2, mirf_PAYLOAD);
+    mirf_config_register(RX_PW_P2, MIRF_PAYLOAD);
     mirf_config_register(RX_ADDR_P3,0x33);
-    mirf_config_register(RX_PW_P3, mirf_PAYLOAD);
+    mirf_config_register(RX_PW_P3, MIRF_PAYLOAD);
     mirf_config_register(RX_ADDR_P4,0x34);
-    mirf_config_register(RX_PW_P4, mirf_PAYLOAD);
+    mirf_config_register(RX_PW_P4, MIRF_PAYLOAD);
     mirf_config_register(RX_ADDR_P5,0x35);
-    mirf_config_register(RX_PW_P5, mirf_PAYLOAD);
+    mirf_config_register(RX_PW_P5, MIRF_PAYLOAD);
     mirf_config_register(EN_RXADDR, 0x7F);
 
     // Enable LCD LED
@@ -129,7 +129,7 @@ void DrawSensor(const SSensorInfo& _info, uint8_t _place, bool _selected = false
     Serial.print(", CellY: ");
     Serial.println(cellY);*/
 
-    if(_info.batt < 0.3)
+    if(_info.batt < 200)
     {
         ucg.setColor(0, 225, 0, 0);	
         ucg.setColor(1, 225, 0, 0);
@@ -183,7 +183,7 @@ void DrawSensor(const SSensorInfo& _info, uint8_t _place, bool _selected = false
     ucg.setColor(0, 180, 180, 180);		// use grey for batt
     ucg.setPrintPos(startX + 20, startY + 65);
     ucg.print("bat. ");
-    ucg.print(int(_info.batt * 100));
+    ucg.print(_info.batt);
     ucg.print("%");
 }
 
@@ -200,19 +200,19 @@ void loop() {
         }
 
         SSensorInfo sensor;
-        uint8_t place = getSensor(DSdata[7], sensor);
+        uint8_t place = getSensor(DSdata[8], sensor);
 
         if(place == 255) 
         {
             Serial.print("Error. Accordinf place for sensor: ");
-            Serial.print(DSdata[7]);
+            Serial.print(DSdata[8]);
             Serial.println(" Not found. Skip drawing.");
 
             return;
         }
 
         sensor.time = 0.0f;
-        sensor.batt = float(DSdata[6]) / 255.0f;
+        sensor.batt = (DSdata[6] << 8) | DSdata[7];
 
         uint32_t uit = ((uint32_t)(DSdata[3] & 0x0F) << 16) | ((uint16_t)DSdata[4] << 8) | DSdata[5]; //20-bit raw temperature data
         sensor.temp = (float)uit * 0.000191 - 50;
@@ -223,14 +223,18 @@ void loop() {
         Serial.print("ID: ");
         Serial.print(sensor.uid);
         Serial.print(" Vbat.: ");
-        Serial.print(DSdata[6]);
+        Serial.print(sensor.batt);
         Serial.print(" Humid.: ");
         Serial.print(sensor.hum);
-        Serial.print("%, Temp.: ");
-        Serial.print(sensor.temp);
-        Serial.print("' (CRC: ");
-        Serial.print(0, HEX);
-        Serial.println(")");
+        Serial.print("%, Temp[6]: ");
+        Serial.print(DSdata[6]);
+        Serial.print(", Temp[7]: ");
+        Serial.print(DSdata[7]);
+        Serial.print(", Temp[8]: ");
+        Serial.print(DSdata[8]);
+        Serial.print(", Temp[9]: ");
+        Serial.print(DSdata[9]);
+        Serial.println(".");
 
         DrawSensor(sensor, place, place == 0 ? true : false);
     }

@@ -33,8 +33,8 @@
 #include <avr/interrupt.h>
 
 // Defines for setting the MiRF registers for transmitting or receiving mode
-#define TX_POWERUP mirf_config_register(CONFIG, mirf_CONFIG | ( (1<<PWR_UP) | (0<<PRIM_RX) ) )
-#define RX_POWERUP mirf_config_register(CONFIG, mirf_CONFIG | ( (1<<PWR_UP) | (1<<PRIM_RX) ) )
+#define TX_POWERUP mirf_config_register(CONFIG, MIRF_CONFIG | ((1<<PWR_UP) | (0 << PRIM_RX)))
+#define RX_POWERUP mirf_config_register(CONFIG, MIRF_CONFIG | ((1<<PWR_UP) | (1 << PRIM_RX)))
 
 // Flag which denotes transmitting mode
 //volatile uint8_t PTX;
@@ -71,11 +71,11 @@ void mirf_config()
 // in receiving mode
 {
     // Set RF channel
-    mirf_config_register(RF_CH,mirf_CH);
+    mirf_config_register(RF_CH, MIRF_CH);
 
     // Set length of incoming payload 
-    mirf_config_register(RX_PW_P0, mirf_PAYLOAD);
-    mirf_config_register(RX_PW_P1, mirf_PAYLOAD);
+    mirf_config_register(RX_PW_P0, MIRF_PAYLOAD);
+    mirf_config_register(RX_PW_P1, MIRF_PAYLOAD);
 
     // Start receiver 
     //PTX = 0;        // Start in receiving mode
@@ -113,14 +113,13 @@ uint8_t mirf_data_ready()
 }
 
 void mirf_get_data(uint8_t * data) 
-// Reads mirf_PAYLOAD bytes into data array
 {
     mirf_CSN_lo;                               // Pull down chip select
-    SPI.transfer( R_RX_PAYLOAD );            // Send cmd to read rx payload
-    for(char i = 0; i < mirf_PAYLOAD; i++)   // Read payload
+    SPI.transfer(R_RX_PAYLOAD);            // Send cmd to read rx payload
+    for(char i = 0; i < MIRF_PAYLOAD; i++)   // Read payload
         data[i] = SPI.transfer(data[i]);
     mirf_CSN_hi;                               // Pull up chip select
-    mirf_config_register(STATUS,(1<<RX_DR));   // Reset status register
+    mirf_config_register(STATUS, (1<<RX_DR));   // Reset status register
 }
 
 void mirf_config_register(uint8_t reg, uint8_t value)
